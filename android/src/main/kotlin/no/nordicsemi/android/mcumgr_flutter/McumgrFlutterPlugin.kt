@@ -49,6 +49,8 @@ class McumgrFlutterPlugin : FlutterPlugin, MethodCallHandler {
 
 	private var managers: MutableMap<String, UpdateManager> = mutableMapOf()
 	private lateinit var fsManagerPlugin: FsManagerPlugin
+	private lateinit var dataStoreManagerPlugin: DataStoreManagerPlugin
+	private lateinit var customGroupManagerPlugin: CustomGroupManagerPlugin
 
 	override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
 		context = flutterPluginBinding.applicationContext
@@ -65,6 +67,20 @@ class McumgrFlutterPlugin : FlutterPlugin, MethodCallHandler {
 		logEventChannel.setStreamHandler(logStreamHandler)
 
 		fsManagerPlugin = FsManagerPlugin(
+			context,
+			logStreamHandler,
+			flutterPluginBinding.binaryMessenger,
+			mainHandler
+		)
+
+		dataStoreManagerPlugin = DataStoreManagerPlugin(
+			context,
+			logStreamHandler,
+			flutterPluginBinding.binaryMessenger,
+			mainHandler
+		)
+
+		customGroupManagerPlugin = CustomGroupManagerPlugin(
 			context,
 			logStreamHandler,
 			flutterPluginBinding.binaryMessenger,

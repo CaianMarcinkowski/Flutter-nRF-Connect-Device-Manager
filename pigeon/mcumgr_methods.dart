@@ -1,16 +1,15 @@
 import 'package:pigeon/pigeon.dart';
 
-@ConfigurePigeon(PigeonOptions(
-  dartOut: 'lib/src/messages.g.dart',
-  dartOptions: DartOptions(),
-  kotlinOut: 'android/src/main/kotlin/no/nordicsemi/android/mcumgr_flutter/Messages.g.kt',
-  kotlinOptions: KotlinOptions(
-      package: "no.nordicsemi.android.mcumgr_flutter"
+@ConfigurePigeon(
+  PigeonOptions(
+    dartOut: 'lib/src/messages.g.dart',
+    dartOptions: DartOptions(),
+    kotlinOut: 'android/src/main/kotlin/no/nordicsemi/android/mcumgr_flutter/Messages.g.kt',
+    kotlinOptions: KotlinOptions(package: "no.nordicsemi.android.mcumgr_flutter"),
+    swiftOut: 'ios/Classes/Messages.g.swift',
+    swiftOptions: SwiftOptions(),
   ),
-  swiftOut: 'ios/Classes/Messages.g.swift',
-  swiftOptions: SwiftOptions(),
-))
-
+)
 /// Generic class that matches all possible events from the native DownloadCallback interface.
 sealed class DownloadCallbackEvent {}
 
@@ -20,7 +19,13 @@ class OnDownloadProgressChangedEvent extends DownloadCallbackEvent {
   final int timestamp;
   final String remoteId;
   final String path;
-  OnDownloadProgressChangedEvent({required this.current, required this.total, required this.timestamp, required this.remoteId, required this.path});
+  OnDownloadProgressChangedEvent({
+    required this.current,
+    required this.total,
+    required this.timestamp,
+    required this.remoteId,
+    required this.path,
+  });
 }
 
 class OnDownloadFailedEvent extends DownloadCallbackEvent {
@@ -32,6 +37,7 @@ class OnDownloadFailedEvent extends DownloadCallbackEvent {
 
 class OnDownloadCancelledEvent extends DownloadCallbackEvent {
   final String remoteId;
+
   /// Needed to track the event source coming through a single stream.
   final String path;
 
@@ -40,18 +46,43 @@ class OnDownloadCancelledEvent extends DownloadCallbackEvent {
 
 class OnDownloadCompletedEvent extends DownloadCallbackEvent {
   final String remoteId;
+
   /// Needed to track the event source coming through a single stream.
   final String path;
+
   /// The raw bytes of the file.
   final Uint8List bytes;
 
   OnDownloadCompletedEvent(this.bytes, {required this.remoteId, required this.path});
 }
 
+class ConnectionStateEvent {
+  final String remoteId;
+  final bool connected;
+  ConnectionStateEvent({required this.remoteId, required this.connected});
+}
+
 @EventChannelApi()
-abstract class FsManagerEvents {
-  /// Get a stream of all file download events.
+abstract class McumgrFlutterEvents {
   DownloadCallbackEvent getFileDownloadEvents();
+  ConnectionStateEvent getConnectionStateEvents();
+}
+
+@HostApi()
+abstract class DataStoreManagerApi {
+  @async
+  Uint8List smpEcho(String remoteId, String message);
+
+  @async
+  Uint8List smpStats(String remoteId, String groupName);
+
+  @async
+  Uint8List smpDataStoreGroupRead(String remoteId, int partition, int cell);
+
+  @async
+  Uint8List smpDataStoreGetMetadata(String remoteId, int partition);
+
+  void smpKill(String remoteId);
 }
 
 @HostApi()

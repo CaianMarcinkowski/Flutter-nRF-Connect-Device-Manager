@@ -226,6 +226,36 @@ data class OnDownloadCompletedEvent (
 
   override fun hashCode(): Int = toList().hashCode()
 }
+
+data class ConnectionStateEvent (
+  val remoteId: String,
+  val connected: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ConnectionStateEvent {
+      val remoteId = pigeonVar_list[0] as String
+      val connected = pigeonVar_list[1] as Boolean
+      return ConnectionStateEvent(remoteId, connected)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      remoteId,
+      connected,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is ConnectionStateEvent) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return MessagesPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -249,6 +279,11 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
           OnDownloadCompletedEvent.fromList(it)
         }
       }
+      133.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ConnectionStateEvent.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -268,6 +303,10 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       is OnDownloadCompletedEvent -> {
         stream.write(132)
+        writeValue(stream, value.toList())
+      }
+      is ConnectionStateEvent -> {
+        stream.write(133)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -318,7 +357,7 @@ class PigeonEventSink<T>(private val sink: EventChannel.EventSink) {
 abstract class GetFileDownloadEventsStreamHandler : MessagesPigeonEventChannelWrapper<DownloadCallbackEvent> {
   companion object {
     fun register(messenger: BinaryMessenger, streamHandler: GetFileDownloadEventsStreamHandler, instanceName: String = "") {
-      var channelName: String = "dev.flutter.pigeon.mcumgr_flutter.FsManagerEvents.getFileDownloadEvents"
+      var channelName: String = "dev.flutter.pigeon.mcumgr_flutter.McumgrFlutterEvents.getFileDownloadEvents"
       if (instanceName.isNotEmpty()) {
         channelName += ".$instanceName"
       }
@@ -328,6 +367,139 @@ abstract class GetFileDownloadEventsStreamHandler : MessagesPigeonEventChannelWr
   }
 }
       
+abstract class GetConnectionStateEventsStreamHandler : MessagesPigeonEventChannelWrapper<ConnectionStateEvent> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: GetConnectionStateEventsStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.mcumgr_flutter.McumgrFlutterEvents.getConnectionStateEvents"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = MessagesPigeonStreamHandler<ConnectionStateEvent>(streamHandler)
+      EventChannel(messenger, channelName, MessagesPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+}
+      
+interface DataStoreManagerApi {
+  fun smpEcho(remoteId: String, message: String, callback: (Result<ByteArray>) -> Unit)
+  fun smpStats(remoteId: String, groupName: String, callback: (Result<ByteArray>) -> Unit)
+  fun smpDataStoreGroupRead(remoteId: String, partition: Long, cell: Long, callback: (Result<ByteArray>) -> Unit)
+  fun smpDataStoreGetMetadata(remoteId: String, partition: Long, callback: (Result<ByteArray>) -> Unit)
+  fun smpKill(remoteId: String)
+
+  companion object {
+    val codec: MessageCodec<Any?> by lazy {
+      MessagesPigeonCodec()
+    }
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: DataStoreManagerApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.DataStoreManagerApi.smpEcho$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val remoteIdArg = args[0] as String
+            val messageArg = args[1] as String
+            api.smpEcho(remoteIdArg, messageArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.DataStoreManagerApi.smpStats$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val remoteIdArg = args[0] as String
+            val groupNameArg = args[1] as String
+            api.smpStats(remoteIdArg, groupNameArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.DataStoreManagerApi.smpDataStoreGroupRead$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val remoteIdArg = args[0] as String
+            val partitionArg = args[1] as Long
+            val cellArg = args[2] as Long
+            api.smpDataStoreGroupRead(remoteIdArg, partitionArg, cellArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.DataStoreManagerApi.smpDataStoreGetMetadata$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val remoteIdArg = args[0] as String
+            val partitionArg = args[1] as Long
+            api.smpDataStoreGetMetadata(remoteIdArg, partitionArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.DataStoreManagerApi.smpKill$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val remoteIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              api.smpKill(remoteIdArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface FsManagerApi {
   /**

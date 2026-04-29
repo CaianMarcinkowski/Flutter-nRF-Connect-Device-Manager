@@ -54,6 +54,61 @@ abstract class FsManagerEvents {
   DownloadCallbackEvent getFileDownloadEvents();
 }
 
+// ---------------------------------------------------------------------------
+// Custom Group Manager — generic SMP transport decorator + group handler
+// ---------------------------------------------------------------------------
+
+/// BLE connection state event emitted by [CustomGroupManagerEvents].
+class ConnectionStateEvent {
+  final String remoteId;
+  final bool connected;
+  ConnectionStateEvent({required this.remoteId, required this.connected});
+}
+
+@EventChannelApi()
+abstract class CustomGroupManagerEvents {
+  /// Emits a [ConnectionStateEvent] whenever the BLE link for a managed
+  /// device changes state.
+  ConnectionStateEvent getConnectionStateEvents();
+}
+
+@HostApi()
+abstract class CustomGroupManagerApi {
+  /// Configures the SMP transport decorator for a specific device.
+  ///
+  /// [suffix] bytes are appended to every outgoing SMP packet.
+  /// [opOverride] overrides byte 0 (op) of the SMP header.
+  /// [flagsOverride] overrides byte 1 (flags) of the SMP header.
+  /// All parameters are optional; omit to leave the field unmodified.
+  void setupDecorator(
+    String remoteId,
+    Uint8List? suffix,
+    int? opOverride,
+    int? flagsOverride,
+  );
+
+  /// Sends a custom SMP command and returns the raw response payload
+  /// (the 8-byte SMP header is stripped before returning).
+  ///
+  /// [groupId]   – SMP group ID (e.g. `0x41` for a vendor-specific group).
+  /// [commandId] – command within the group.
+  /// [op]        – SMP operation code (`0` = read, `2` = write).
+  /// [payload]   – string-keyed map CBOR-encoded as the request payload.
+  @async
+  Uint8List sendCustomCommand(
+    String remoteId,
+    int groupId,
+    int commandId,
+    int op,
+    Map<String?, Object?> payload,
+  );
+
+  /// Releases all native resources for the given device.
+  void kill(String remoteId);
+}
+
+// ---------------------------------------------------------------------------
+
 @HostApi()
 abstract class FsManagerApi {
   /// Starts the download of a single file with a specific device.

@@ -226,6 +226,28 @@ data class OnDownloadCompletedEvent (
 
   override fun hashCode(): Int = toList().hashCode()
 }
+data class ConnectionStateEvent (
+  val remoteId: String,
+  val connected: Boolean
+) {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ConnectionStateEvent {
+      val remoteId = pigeonVar_list[0] as String
+      val connected = pigeonVar_list[1] as Boolean
+      return ConnectionStateEvent(remoteId, connected)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(remoteId, connected)
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is ConnectionStateEvent) return false
+    if (this === other) return true
+    return MessagesPigeonUtils.deepEquals(toList(), other.toList())
+  }
+  override fun hashCode(): Int = toList().hashCode()
+}
+
 private open class MessagesPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -249,6 +271,11 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
           OnDownloadCompletedEvent.fromList(it)
         }
       }
+      133.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ConnectionStateEvent.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -268,6 +295,10 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       is OnDownloadCompletedEvent -> {
         stream.write(132)
+        writeValue(stream, value.toList())
+      }
+      is ConnectionStateEvent -> {
+        stream.write(133)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -323,6 +354,19 @@ abstract class GetFileDownloadEventsStreamHandler : MessagesPigeonEventChannelWr
         channelName += ".$instanceName"
       }
       val internalStreamHandler = MessagesPigeonStreamHandler<DownloadCallbackEvent>(streamHandler)
+      EventChannel(messenger, channelName, MessagesPigeonMethodCodec).setStreamHandler(internalStreamHandler)
+    }
+  }
+}
+
+abstract class GetConnectionStateEventsStreamHandler : MessagesPigeonEventChannelWrapper<ConnectionStateEvent> {
+  companion object {
+    fun register(messenger: BinaryMessenger, streamHandler: GetConnectionStateEventsStreamHandler, instanceName: String = "") {
+      var channelName: String = "dev.flutter.pigeon.mcumgr_flutter.CustomGroupManagerEvents.getConnectionStateEvents"
+      if (instanceName.isNotEmpty()) {
+        channelName += ".$instanceName"
+      }
+      val internalStreamHandler = MessagesPigeonStreamHandler<ConnectionStateEvent>(streamHandler)
       EventChannel(messenger, channelName, MessagesPigeonMethodCodec).setStreamHandler(internalStreamHandler)
     }
   }
@@ -451,6 +495,87 @@ interface FsManagerApi {
       }
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.FsManagerApi.kill$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val remoteIdArg = args[0] as String
+            val wrapped: List<Any?> = try {
+              api.kill(remoteIdArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface CustomGroupManagerApi {
+  fun setupDecorator(remoteId: String, suffix: ByteArray?, opOverride: Long?, flagsOverride: Long?)
+  fun sendCustomCommand(remoteId: String, groupId: Long, commandId: Long, op: Long, payload: Map<String?, Any?>, callback: (Result<ByteArray>) -> Unit)
+  fun kill(remoteId: String)
+
+  companion object {
+    val codec: MessageCodec<Any?> by lazy {
+      MessagesPigeonCodec()
+    }
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: CustomGroupManagerApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.CustomGroupManagerApi.setupDecorator$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val remoteIdArg = args[0] as String
+            val suffixArg = args[1] as ByteArray?
+            val opOverrideArg = args[2] as Long?
+            val flagsOverrideArg = args[3] as Long?
+            val wrapped: List<Any?> = try {
+              api.setupDecorator(remoteIdArg, suffixArg, opOverrideArg, flagsOverrideArg)
+              listOf(null)
+            } catch (exception: Throwable) {
+              MessagesPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.CustomGroupManagerApi.sendCustomCommand$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val remoteIdArg = args[0] as String
+            val groupIdArg = args[1] as Long
+            val commandIdArg = args[2] as Long
+            val opArg = args[3] as Long
+            @Suppress("UNCHECKED_CAST")
+            val payloadArg = args[4] as Map<String?, Any?>
+            api.sendCustomCommand(remoteIdArg, groupIdArg, commandIdArg, opArg, payloadArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.mcumgr_flutter.CustomGroupManagerApi.kill$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>

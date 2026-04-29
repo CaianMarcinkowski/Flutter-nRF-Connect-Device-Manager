@@ -17,3 +17,4 @@ part 'models/mcu_log_message.dart';
 part 'models/progress_update.dart';
 part 'src/mcumgr_flutter.dart';
 part 'src/mcumgr_fs_manager.dart';
+part 'src/custom_group_manager.dart';

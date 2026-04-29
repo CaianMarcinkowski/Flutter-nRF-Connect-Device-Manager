@@ -24,14 +24,9 @@ import no.nordicsemi.android.mcumgr_flutter.logging.LoggableMcuMgrBleTransport
 import no.nordicsemi.android.mcumgr_flutter.utils.*
 import no.nordicsemi.android.mcumgr_flutter.gen.*
 
-/** McumgrFlutterPlugin */
 class McumgrFlutterPlugin : FlutterPlugin, MethodCallHandler {
 	private val namespace = "mcumgr_flutter"
 
-	/// The MethodChannel that will the communication between Flutter and native Android
-	///
-	/// This local reference serves to register the plugin with the Flutter Engine and unregister it
-	/// when the Flutter Engine is detached from the Activity
 	private lateinit var methodChannel: MethodChannel
 
 	private lateinit var mainHandler: Handler
@@ -48,6 +43,7 @@ class McumgrFlutterPlugin : FlutterPlugin, MethodCallHandler {
 
 	private var managers: MutableMap<String, UpdateManager> = mutableMapOf()
 	private lateinit var fsManagerPlugin: FsManagerPlugin
+	private lateinit var customGroupManagerPlugin: CustomGroupManagerPlugin
 
 	override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
 		context = flutterPluginBinding.applicationContext
@@ -64,6 +60,13 @@ class McumgrFlutterPlugin : FlutterPlugin, MethodCallHandler {
 		logEventChannel.setStreamHandler(logStreamHandler)
 
 		fsManagerPlugin = FsManagerPlugin(
+			context,
+			logStreamHandler,
+			flutterPluginBinding.binaryMessenger,
+			mainHandler
+		)
+
+		customGroupManagerPlugin = CustomGroupManagerPlugin(
 			context,
 			logStreamHandler,
 			flutterPluginBinding.binaryMessenger,
